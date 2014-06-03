@@ -31,7 +31,11 @@
 
 import logging
 import os
-from sqlalchemy import create_engine, asc, desc, func, __version__, select
+
+from sqlalchemy import (
+    create_engine, asc, desc, func, __version__, select, Table, MetaData,
+    PrimaryKeyConstraint
+)
 from sqlalchemy.sql import text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import create_session
@@ -97,7 +101,13 @@ class Repository(object):
 
         self.engine = Repository.create_engine('%s' % database)
 
-        base = declarative_base(bind=self.engine)
+        myMetadata = MetaData()
+        myTable = Table(
+            table, myMetadata, autoload=True, autoload_with=self.engine
+        )
+        myTable.append_constraint(PrimaryKeyConstraint('id'))
+
+        base = declarative_base()
 
         LOGGER.debug('binding ORM to existing database')
 
@@ -105,9 +115,7 @@ class Repository(object):
 
         schema, table = util.sniff_table(table)
 
-        self.dataset = type('dataset', (base,),
-        dict(__tablename__=table,__table_args__={'autoload': True,
-                                                 'schema': schema}))
+        self.dataset = type('dataset', (base,), dict(__table__=myTable))
 
         self.dbtype = self.engine.name
 
